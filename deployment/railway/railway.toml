@@ -1,0 +1,21 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+numReplicas = 1
+sleepApplication = false
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+
+[deploy.envs]
+SUPABASE_ENABLED = "true"
+SUPABASE_MEMORY_ENABLED = "true"
+SUPABASE_VECTOR_ENABLED = "true"
+HERMES_HOME = "/data/.hermes"
+
+[[deploy.volumes]]
+mountPath = "/data/.hermes"
+name = "hermes-data"
+size = "1GB"

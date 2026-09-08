@@ -1,0 +1,23 @@
+name: hermes-agent
+type: web
+env: docker
+dockerfilePath: ./Dockerfile
+plan: standard
+envVars:
+  - key: SUPABASE_URL
+    fromDatabase:
+      name: hermes-db
+      property: connectionString
+  - key: SUPABASE_SERVICE_ROLE_KEY
+    secret: true
+  - key: SUPABASE_ENABLED
+    value: "true"
+  - key: SUPABASE_MEMORY_ENABLED
+    value: "true"
+  - key: SUPABASE_VECTOR_ENABLED
+    value: "true"
+  - key: HERMES_HOME
+    value: /data/.hermes
+disk:
+  path: /data/.hermes
+  size: 5GB
