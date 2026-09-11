@@ -190,7 +190,7 @@ function frontPaneInGroup(paneId: string) {
  *    removed from the tree and remembered so adoption doesn't re-add them.
  *    Reveal intent (a preview target, ⌘G) or a layout reset un-dismisses;
  *  - closing the sole pane from a plugin disables that plugin, preserving the
- *    discoverable Settings → Plugins recovery path for single-pane plugins.
+ *    discoverable Capabilities → Plugins recovery path for single-pane plugins.
  */
 const DISMISSED_KEY = 'hermes.desktop.dismissedPanes.v1'
 
@@ -209,6 +209,28 @@ function setDismissed(paneId: string, dismissed: boolean) {
   const next = toggledSet($dismissedPanes.get(), paneId, dismissed)
 
   if (next) {
+    saveDismissed(next)
+  }
+}
+
+/**
+ * Clear dismissal records for panes a NEW layout declares, without touching
+ * the tree or anyone's active tab (`revealTreePane` fronts, which would bury
+ * whatever the user is looking at).
+ *
+ * A dismissal outlives the layout that caused it. Switching to a layout that
+ * wants a previously dismissed pane back would otherwise place it in the tree
+ * and leave it invisible — the layout half-applies.
+ */
+export function undismissTreePanes(paneIds: Iterable<string>): void {
+  const dismissed = $dismissedPanes.get()
+  const next = new Set(dismissed)
+
+  for (const paneId of paneIds) {
+    next.delete(paneId)
+  }
+
+  if (next.size !== dismissed.size) {
     saveDismissed(next)
   }
 }
@@ -755,6 +777,11 @@ export function tabStripVisibleForGroup(group: GroupNode): boolean {
   })
 }
 
+/** Shared target for tab-number hints and shortcut dispatch. */
+export function treeTabSlotTarget(): GroupNode | null {
+  return tabTargetGroup(candidate => shownPanesInGroup(candidate).length >= 2)
+}
+
 /** ⌘1…⌘9: activate the Nth *visible* tab of the target zone — the first of
  *  hovered / focused / workspace that is a real tab strip (≥2 shown panes).
  *  Pointing at the sidebar (or nothing) therefore still switches main's tabs
@@ -763,7 +790,7 @@ export function tabStripVisibleForGroup(group: GroupNode): boolean {
  *  must also route back to the chat) — or null so it falls back to its
  *  default (profile switch) when no zone qualifies. */
 export function activateTreeTabSlot(slot: number): null | string {
-  const group = tabTargetGroup(candidate => shownPanesInGroup(candidate).length >= 2)
+  const group = treeTabSlotTarget()
   const panes = group ? shownPanesInGroup(group) : []
 
   if (!group || slot < 1 || slot > panes.length) {
@@ -909,7 +936,7 @@ export function closeTreePane(paneId: string) {
     }
 
     // A single-pane plugin keeps the existing symmetric behavior: Close uses
-    // the same switch as Settings → Plugins. Its contribution unregisters but
+    // the same switch as Capabilities → Plugins. Its contribution unregisters but
     // the pane id stays in the tree, so re-enabling restores its exact place.
     const pluginId = source.slice('plugin:'.length)
     void setPluginEnabled(pluginId, false)
@@ -1267,6 +1294,20 @@ writeKey('hermes.desktop.paneDockHeals.v1', null)
 const enforcedDocksThisBoot = new Set<string>()
 
 /**
+ * Reopen the enforcement window. The ledger protects a user's mid-session
+ * drags, but a wholesale tree replacement has no drags left to protect — and
+ * a pass that ran against a DIFFERENT tree burned the entry for nothing. That
+ * is how the guided onboarding shipped Bots as a tab over the chat: the boot
+ * pass fired while the solo tree had no sessions column to anchor to, so the
+ * assembled layout's pass was skipped as already-done.
+ *
+ * Only call this when replacing the tree wholesale.
+ */
+export function resetEnforcedDocks(): void {
+  enforcedDocksThisBoot.clear()
+}
+
+/**
  * A `panes` contribution whose dock hint carries `enforce: true` is re-homed
  * onto the hint's anchor at every boot's first adoption pass when it isn't
  * already docked there. Unlike the retired one-time heal, nothing
@@ -1342,7 +1383,7 @@ function enforceDockedPanes(
   return next
 }
 
-function adoptContributedPanes(): void {
+export function adoptContributedPanes(): void {
   const tree = $layoutTree.get()
 
   if (!tree) {
