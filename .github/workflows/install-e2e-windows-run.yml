@@ -118,6 +118,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Forks may not carry upstream release tags; the E2E matrix passes exact
+      # release tags into this reusable workflow, so fetch them here as well.
+      - name: Fetch upstream release tags
+        shell: pwsh
+        run: |
+          git remote add upstream https://github.com/NousResearch/hermes-agent.git
+          git fetch --force --filter=blob:none --depth=1 upstream '+refs/tags/v*:refs/tags/v*'
+
       # One recording mechanism on every OS: the composite action installs
       # ffmpeg (cached - winget's download is the slow part), starts the
       # capture, and record-stop fails on a zero-frame file so a silently
