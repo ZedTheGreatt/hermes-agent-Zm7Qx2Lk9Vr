@@ -93,6 +93,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Forks may not carry upstream release tags; the E2E matrix passes exact
+      # release tags into this reusable workflow, so fetch them here as well.
+      - name: Fetch upstream release tags
+        run: |
+          git remote add upstream https://github.com/NousResearch/hermes-agent.git
+          git fetch --force --filter=blob:none --depth=1 upstream \
+            '+refs/tags/v*:refs/tags/v*'
+
       - name: Start screen recording
         uses: ./.github/actions/e2e-screen-record
         with:
